@@ -48,7 +48,6 @@ orderSchema.pre("save", async function (next) {
     const productDoc = await mongoose
       .model("Product")
       .findById(product.product);
-    console.log(productDoc);
     totalPrice += product.quantity * productDoc.price;
   }
   order.totalPrice = totalPrice;

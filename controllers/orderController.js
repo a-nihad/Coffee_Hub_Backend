@@ -9,24 +9,29 @@ export const createOrder = catchAsync(async (req, res, next) => {
   if (!products)
     return next(new AppError("Please provide all required field", 400));
 
+  // Check the product availability
+  for (let product of products) {
+    if (product.availability < product.quantity)
+      return next(new AppError(`${product.name} is out of stock`, 400));
+  }
+
+  // Update the product availability
+  for (let product of products) {
+    await Product.findByIdAndUpdate(
+      product.product,
+      {
+        $inc: { availability: -product.quantity },
+      },
+      { new: true }
+    );
+  }
+
   // Create Order
   const newOrder = await Order.create({
     customerId: req.user._id,
     customer: req.user.userName,
     products,
   });
-
-  // const user = await User.findOneAndUpdate(
-  //   { email },
-  //   { isVerified: true },
-  //   { new: true }
-  // );
-
-  // products.map(product=>{
-  //   const updated =  
-  // })
-
-  // await Product.findByIdAndUpdate({}, { isVerified: true }, { new: true });
 
   res.status(201).json({
     status: "success",
@@ -59,12 +64,27 @@ export const getOrders = catchAsync(async (req, res, next) => {
 });
 
 export const updateOrder = catchAsync(async (req, res, next) => {
-  const order = await Order.findByIdAndUpdate(req.params.id, req.body, {
+  const order = await Order.findById(req.params.id);
+
+  if (!order) return next(new AppError("No document found with that ID", 400));
+
+  // Update the product availability
+  if (req.body.orderStatus === "cancelled") {
+    for (let product of order.products) {
+      await Product.findByIdAndUpdate(
+        product.product,
+        {
+          $inc: { availability: product.quantity },
+        },
+        { new: true }
+      );
+    }
+  }
+
+  await Order.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
   });
-
-  if (!order) return next(new AppError("No document found with that ID", 400));
 
   res.status(200).json({
     status: "success",
@@ -74,9 +94,24 @@ export const updateOrder = catchAsync(async (req, res, next) => {
 });
 
 export const deleteOrder = catchAsync(async (req, res, next) => {
-  const order = await Order.findByIdAndDelete(req.params.id);
+  const order = await Order.findById(req.params.id);
 
   if (!order) return next(new AppError("No document found with that ID", 400));
+
+  // Update the product availability
+  if (order.orderStatus !== "cancelled") {
+    for (let product of order.products) {
+      await Product.findByIdAndUpdate(
+        product.product,
+        {
+          $inc: { availability: product.quantity },
+        },
+        { new: true }
+      );
+    }
+  }
+
+  await Order.findByIdAndDelete(req.params.id);
 
   res.status(200).json({
     status: "success",
