@@ -22,6 +22,16 @@ const productSchema = new mongoose.Schema({
     required: [true, "Availability is required!"],
     default: 1,
   },
+  image: {
+    publicId: {
+      type: String,
+      required: true,
+    },
+    url: {
+      type: String,
+      required: true,
+    },
+  },
   createdAt: {
     type: Date,
     default: Date.now,

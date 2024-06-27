@@ -1,12 +1,18 @@
-import Product from "../models/productModel.js";
 import AppError from "../utils/appError.js";
+import Product from "../models/productModel.js";
 import { catchAsync } from "../utils/catchAsync.js";
+import cloudinary from "../config/configCloudinary.js";
 
 export const createProduct = catchAsync(async (req, res, next) => {
-  const { name, description, price, category, availability } = req.body;
+  const { name, description, price, category, availability, image } = req.body;
 
-  if (!name || !description || !price || !category || !availability)
+  if (!name || !description || !price || !category || !availability || !image)
     return next(new AppError("Please provide all required field", 400));
+
+  // Upload image to Cloudinary
+  const result = await cloudinary.uploader.upload(image, {
+    folder: "Coffee_Hub",
+  });
 
   // Create Product
   const newProduct = await Product.create({
@@ -15,6 +21,10 @@ export const createProduct = catchAsync(async (req, res, next) => {
     price,
     category,
     availability,
+    image: {
+      url: result.url,
+      publicId: result.public_id,
+    },
   });
 
   res.status(201).json({
@@ -35,7 +45,7 @@ export const getProducts = catchAsync(async (req, res, next) => {
     ],
   };
 
-  const products = await Product.find(queryObject);
+  const products = await Product.find(queryObject).sort({ createdAt: 1 });
 
   res.status(200).json({
     status: "success",
